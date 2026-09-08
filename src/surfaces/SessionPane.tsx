@@ -53,6 +53,7 @@ type Props = {
   composerFocused: boolean;
   recents: RecentProject[];
   hideProjectPicker?: boolean;
+  chatOnly?: boolean;
   onFocus: (sessionId: string) => void;
   onClose: (sessionId: string) => void;
   onCwdChange: (sessionId: string, cwd: string) => void;
@@ -130,6 +131,7 @@ export const SessionPane = memo(function SessionPane({
   composerFocused,
   recents,
   hideProjectPicker,
+  chatOnly = false,
   onFocus,
   onClose,
   onCwdChange,
@@ -259,6 +261,7 @@ export const SessionPane = memo(function SessionPane({
       }
       hideBranchPicker={!!session.inboxAsk}
       hideTopBar={!!session.inboxAsk}
+      chatOnly={chatOnly}
       context={session.context}
       quoteRequest={quoteRequest}
       initialDraft={
@@ -318,7 +321,7 @@ export const SessionPane = memo(function SessionPane({
       onOpenFile={onOpenFile}
       busy={!!session.busy}
     >
-      {session.inboxAsk ? null : (
+      {session.inboxAsk || chatOnly ? null : (
         <SessionReview
           sessionId={session.id}
           cwd={workCwd}

@@ -21,7 +21,6 @@ import { UsageFooter } from "./chrome/UsageFooter";
 import { useProjectBranches } from "./hooks/useProjectBranches";
 import {
   loadProjectRailOpen,
-  loadSidebarTabOrder,
   saveProjectRailOpen,
   type SidebarTabId,
 } from "./lib/appearance";
@@ -602,15 +601,16 @@ export default function App({
   const tabCloseScope = "project" as const;
   const currentProjectDock = findProjectTerminal(projectTerminals, projectCwd);
   const dockVisible = !!currentProjectDock?.open;
-  const [sidebarTab, setSidebarTab] = useState<SidebarTabId>(
-    () => loadSidebarTabOrder()[0] ?? "sessions",
-  );
+  const [sidebarTab, setSidebarTab] = useState<SidebarTabId>("sessions");
+  const sidebarTabRef = useRef<SidebarTabId>(sidebarTab);
+  sidebarTabRef.current = sidebarTab;
   const [filesSearchOpen, setFilesSearchOpen] = useState(false);
   const [searchFocusToken, setSearchFocusToken] = useState(0);
   const [searchViewOpen, setSearchViewOpen] = useState(false);
   const [searchViewFocusToken, setSearchViewFocusToken] = useState(0);
   const [inboxViewOpen, setInboxViewOpen] = useState(false);
-  const [inboxAskPortal, setInboxAskPortal] = useState<InboxSessionPortal | null>(null);
+  const [inboxAskPortal, setInboxAskPortal] =
+    useState<InboxSessionPortal | null>(null);
   const openingInboxSessions = useRef(new Map<string, Promise<string>>());
   const [notesViewOpen, setNotesViewOpen] = useState(false);
   const notesEnabled = useSyncExternalStore(
@@ -748,13 +748,12 @@ export default function App({
 
   const stopSessionForRemoval = useCallback(
     async (sessionId: string): Promise<Session | undefined> => {
-      const open = sessionsRef.current.find((session) => session.id === sessionId);
+      const open = sessionsRef.current.find(
+        (session) => session.id === sessionId,
+      );
       if (!open?.busy) return open;
 
-      turnGen.current.set(
-        sessionId,
-        (turnGen.current.get(sessionId) ?? 0) + 1,
-      );
+      turnGen.current.set(sessionId, (turnGen.current.get(sessionId) ?? 0) + 1);
       flushHarnessEvents();
       await Promise.all(
         sessionChildHarnesses(open).map((harness) =>
@@ -874,7 +873,9 @@ export default function App({
       (session) => activeTab && leafIds(activeTab.layout).includes(session.id),
     );
   const sessionDefaults = active ?? sessions[0];
-  const activeSkillContext = active ? nativeSkillContextForSession(active) : null;
+  const activeSkillContext = active
+    ? nativeSkillContextForSession(active)
+    : null;
   const activeSkillCwd = activeSkillContext?.cwd;
 
   useEffect(() => {
@@ -965,7 +966,9 @@ export default function App({
   }
   const approvalSessionIds = approvalSessionIdsRef.current;
 
-  const activeSessionId = inboxViewOpen ? inboxAskPortal?.sessionId : active?.id;
+  const activeSessionId = inboxViewOpen
+    ? inboxAskPortal?.sessionId
+    : active?.id;
   const activeSessionIdRef = useRef(activeSessionId);
   activeSessionIdRef.current = activeSessionId;
 
@@ -1134,7 +1137,8 @@ export default function App({
       !session ||
       !shouldPersistSession(session) ||
       removingSessionIds.current.has(session.id)
-    ) return;
+    )
+      return;
     const fingerprint = persistFingerprint(session);
     void upsertSession(session)
       .then((summary) => {
@@ -2518,57 +2522,94 @@ export default function App({
     [refreshHistory, sidebarCwd],
   );
 
-  const onAskInboxItem = useCallback((item: InboxItem): Promise<string> => {
-    const key = inboxAskKey(item);
-    const pending = openingInboxSessions.current.get(key);
-    if (pending) return pending;
-    const opening = (async () => {
-      let session = sessionsRef.current.find(entry => entry.inboxAsk?.key === key);
-      if (!session) {
-        const candidate = item.projectPath || sidebarCwd;
-        const cwd = candidate && candidate !== "~" ? candidate : await invoke<string>("default_cwd");
-        const description = item.provider === "linear" && item.id
-          ? (peekLinearIssueDetails(item.id) ?? await linearIssueDetails(item.id)).body
-          : undefined;
-        session = {
-          ...newDefaultSession(cwd),
-          title: `Ask · ${item.title}`,
-          inboxAsk: { key, title: item.title, url: item.url, provider: item.provider, description },
-        };
-        sessionsRef.current = [...sessionsRef.current, session];
-        setSessions(sessionsRef.current);
-      }
-      return session.id;
-    })();
-    openingInboxSessions.current.set(key, opening);
-    void opening.then(
-      () => openingInboxSessions.current.delete(key),
-      () => openingInboxSessions.current.delete(key),
-    );
-    return opening;
-  }, [sidebarCwd]);
+  const onAskInboxItem = useCallback(
+    (item: InboxItem): Promise<string> => {
+      const key = inboxAskKey(item);
+      const pending = openingInboxSessions.current.get(key);
+      if (pending) return pending;
+      const opening = (async () => {
+        let session = sessionsRef.current.find(
+          (entry) => entry.inboxAsk?.key === key,
+        );
+        if (!session) {
+          const candidate = item.projectPath || sidebarCwd;
+          const cwd =
+            candidate && candidate !== "~"
+              ? candidate
+              : await invoke<string>("default_cwd");
+          const description =
+            item.provider === "linear" && item.id
+              ? (
+                  peekLinearIssueDetails(item.id) ??
+                  (await linearIssueDetails(item.id))
+                ).body
+              : undefined;
+          session = {
+            ...newDefaultSession(cwd),
+            title: `Ask · ${item.title}`,
+            inboxAsk: {
+              key,
+              title: item.title,
+              url: item.url,
+              provider: item.provider,
+              description,
+            },
+          };
+          sessionsRef.current = [...sessionsRef.current, session];
+          setSessions(sessionsRef.current);
+        }
+        return session.id;
+      })();
+      openingInboxSessions.current.set(key, opening);
+      void opening.then(
+        () => openingInboxSessions.current.delete(key),
+        () => openingInboxSessions.current.delete(key),
+      );
+      return opening;
+    },
+    [sidebarCwd],
+  );
 
-  const onRestartInboxAsk = useCallback(async (item: InboxItem): Promise<string> => {
-    const id = await onAskInboxItem(item);
-    const current = sessionsRef.current.find(session => session.id === id)!;
-    removingSessionIds.current.add(id);
-    try {
-      await stopSessionForRemoval(id);
-      await Promise.all(sessionChildHarnesses(current).map(harness => forgetHarnessSession(harness, id)));
-      const fresh = {
-        ...newSession(current.harness, current.cwd, current.model, current.runtimeMode, current.modelSettings),
-        title: current.title,
-        inboxAsk: current.inboxAsk,
-      };
-      const next = sessionsRef.current.map(session => session.id === id ? fresh : session);
-      sessionsRef.current = next;
-      setSessions(next);
-      setInboxAskPortal(portal => portal?.sessionId === id ? { ...portal, sessionId: fresh.id } : portal);
-      return fresh.id;
-    } finally {
-      removingSessionIds.current.delete(id);
-    }
-  }, [onAskInboxItem, stopSessionForRemoval]);
+  const onRestartInboxAsk = useCallback(
+    async (item: InboxItem): Promise<string> => {
+      const id = await onAskInboxItem(item);
+      const current = sessionsRef.current.find((session) => session.id === id)!;
+      removingSessionIds.current.add(id);
+      try {
+        await stopSessionForRemoval(id);
+        await Promise.all(
+          sessionChildHarnesses(current).map((harness) =>
+            forgetHarnessSession(harness, id),
+          ),
+        );
+        const fresh = {
+          ...newSession(
+            current.harness,
+            current.cwd,
+            current.model,
+            current.runtimeMode,
+            current.modelSettings,
+          ),
+          title: current.title,
+          inboxAsk: current.inboxAsk,
+        };
+        const next = sessionsRef.current.map((session) =>
+          session.id === id ? fresh : session,
+        );
+        sessionsRef.current = next;
+        setSessions(next);
+        setInboxAskPortal((portal) =>
+          portal?.sessionId === id
+            ? { ...portal, sessionId: fresh.id }
+            : portal,
+        );
+        return fresh.id;
+      } finally {
+        removingSessionIds.current.delete(id);
+      }
+    },
+    [onAskInboxItem, stopSessionForRemoval],
+  );
 
   useEffect(() => {
     if (!inboxAskPortal || !inboxViewOpen) return;
@@ -3403,7 +3444,8 @@ export default function App({
       const current = options?.buildTarget
         ? withPlanBuildTarget(storedCurrent, options.buildTarget)
         : storedCurrent;
-      const intent = options?.intent ?? "default";
+      const chatOnly = sidebarTabRef.current === "sessions";
+      const intent = chatOnly ? "default" : (options?.intent ?? "default");
       const approvedPlan = options?.planBlockId
         ? current.blocks.find(
             (block) =>
@@ -3435,11 +3477,11 @@ export default function App({
       if (isPreparingHandoff(current)) return;
       const workCwd = sessionWorkCwd(current);
       const submittedText = intent === "build" ? "Build approved plan" : text;
-      const rawCommand = isNativeCommandPrompt(submittedText, current.harness);
+      const rawCommand =
+        !chatOnly && isNativeCommandPrompt(submittedText, current.harness);
       const harnessText = rawCommand
         ? submittedText
         : composeNoteMessage(noteCard, submittedText);
-
       const pendingSwitch =
         current.pendingSwitch && current.pendingSwitch.from !== current.harness
           ? current.pendingSwitch
@@ -3522,7 +3564,10 @@ export default function App({
               cwd: workCwd,
               model: current.model,
               modelSettings: current.modelSettings,
-              text: inboxAskPrompt(rawCommand ? undefined : current.inboxAsk, prompt),
+              text: inboxAskPrompt(
+                rawCommand ? undefined : current.inboxAsk,
+                prompt,
+              ),
               attachments: prepared,
             });
           } catch (error: unknown) {
@@ -3751,7 +3796,7 @@ export default function App({
         let buildSucceeded = false;
         try {
           const prepared = await prepareAttachments(attachments);
-          const prompt =
+          const preparedPrompt =
             intent === "build" && approvedPlan
               ? buildPlanPrompt(approvedPlan.text)
               : await preparePrompt(harnessText, {
@@ -3759,6 +3804,12 @@ export default function App({
                   sessionId,
                   cwd: workCwd,
                 });
+          const prompt = chatOnly
+            ? [
+                "[Vertex Chat mode: This is a conversation-only turn. Do not create, edit, rename, move, or delete files, and do not run commands that can change the workspace. You may read existing context when needed, but respond conversationally only.]",
+                preparedPrompt,
+              ].join("\n\n")
+            : preparedPrompt;
           const turnPrompt =
             intent === "plan" && !rawCommand ? planTurnPrompt(prompt) : prompt;
           const earlier = queuedHandoff
@@ -3770,19 +3821,31 @@ export default function App({
             cwd: workCwd,
             model: current.model,
             modelSettings: current.modelSettings,
-            runtimeMode: current.runtimeMode,
+            runtimeMode: chatOnly ? "supervised" : current.runtimeMode,
             intent,
-            text: inboxAskPrompt(rawCommand ? undefined : current.inboxAsk, wrap && !rawCommand
-              ? wrapHandoffPrompt(
-                  wrap.text,
-                  wrap.from,
-                  turnPrompt.trim() || CONTINUE_PROMPT,
-                  earlier,
-                )
-              : turnPrompt),
+            text: inboxAskPrompt(
+              rawCommand ? undefined : current.inboxAsk,
+              wrap && !rawCommand
+                ? wrapHandoffPrompt(
+                    wrap.text,
+                    wrap.from,
+                    turnPrompt.trim() || CONTINUE_PROMPT,
+                    earlier,
+                  )
+                : turnPrompt,
+            ),
             attachments: prepared,
             onEvent: (event) => {
               if (turnGen.current.get(sessionId) !== gen) return;
+              if (chatOnly && event.type === "approval.requested") {
+                respondHarnessApproval(
+                  current.harness,
+                  sessionId,
+                  event.requestId,
+                  "deny",
+                );
+                return;
+              }
               if (
                 wrap &&
                 (event.type === "session.started" ||
@@ -3848,7 +3911,9 @@ export default function App({
           // Next tick: the flush above has rendered by then, so the banner
           // quotes the reply's final text rather than the previous batch.
           window.setTimeout(() => {
-            const finished = sessionsRef.current.find((s) => s.id === sessionId);
+            const finished = sessionsRef.current.find(
+              (s) => s.id === sessionId,
+            );
             const visible = sessionId === activeSessionIdRef.current;
             const sent = finished
               ? notifySession(finished, "finished", visible)
@@ -4444,7 +4509,10 @@ export default function App({
   const openProjectSessions = useMemo(
     () =>
       sessions
-        .filter((session) => !session.inboxAsk && sameProjectPath(session.cwd, sidebarCwd))
+        .filter(
+          (session) =>
+            !session.inboxAsk && sameProjectPath(session.cwd, sidebarCwd),
+        )
         .map((session) =>
           summaryFromSession(session, {
             ...(projectBranches?.current
@@ -5001,6 +5069,7 @@ export default function App({
   const sessionPaneProps = {
     recents,
     hideProjectPicker: true,
+    chatOnly: sidebarTab === "sessions",
     onFocus: onFocusPane,
     onClose: onClosePane,
     onCwdChange,
@@ -5293,7 +5362,7 @@ export default function App({
             cwd={sidebarCwd}
             recents={recents}
             history={projectHistory}
-            sessions={sessions.filter(session => !session.inboxAsk)}
+            sessions={sessions.filter((session) => !session.inboxAsk)}
             focusToken={searchViewFocusToken}
             besideRail={projectRailOpen}
             onClose={onLeaveSearch}
@@ -5305,9 +5374,10 @@ export default function App({
         ) : null}
         <div className="hidden" aria-hidden>
           {sessions
-            .filter(session => session.inboxAsk)
-            .map(session => {
-              const visible = inboxViewOpen && inboxAskPortal?.sessionId === session.id;
+            .filter((session) => session.inboxAsk)
+            .map((session) => {
+              const visible =
+                inboxViewOpen && inboxAskPortal?.sessionId === session.id;
               return (
                 <SessionSurface
                   key={session.id}

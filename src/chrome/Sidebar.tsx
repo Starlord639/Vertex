@@ -24,11 +24,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
-import {
-  loadSidebarTabOrder,
-  saveSidebarTabOrder,
-  type SidebarTabId,
-} from "../lib/appearance";
+import type { SidebarTabId } from "../lib/appearance";
 import { basename, type GitHistoryCommit } from "../lib/fs";
 import { IS_MAC, MOD } from "../lib/platform";
 import { resolveModel } from "../lib/models";
@@ -133,12 +129,7 @@ let rememberedWidth = DEFAULT_WIDTH;
 
 type SidebarTab = SidebarTabId;
 
-const TAB_LABELS: Record<SidebarTab, string> = {
-  sessions: "Sessions",
-  inbox: "Inbox",
-  files: "Explorer",
-  changes: "Changes",
-};
+type WorkspaceTab = Extract<SidebarTab, "files" | "changes">;
 
 function projectPathBusy(
   paths: Iterable<string> | undefined,
@@ -305,7 +296,8 @@ function SidebarComponent({
       rememberedWidth = next;
     },
   });
-  const [tabOrder, setTabOrder] = useState<SidebarTab[]>(loadSidebarTabOrder);
+  const [lastWorkspaceTab, setLastWorkspaceTab] =
+    useState<WorkspaceTab>("files");
   const [now, setNow] = useState(() => Date.now());
   const sessionsLock = useLockOverscroll<HTMLDivElement>();
   const sessionsScrollRef = useRef<HTMLDivElement>(null);
@@ -425,12 +417,6 @@ function SidebarComponent({
   const sessionListKey = `${cwd}\0${sessionFilters.showArchived}\0${sessionFilters.time}\0${sessionFilters.hiddenHarnesses.join(",")}\0${sessionFilters.status.working}\0${sessionFilters.status.needsApproval}\0${sessionFilters.status.done}\0${searchQuery}`;
   const sessionHarnesses = harnessesInSessions(sessions);
   const narrowedByUser = searchNarrowed || filtersActive;
-  const sortable = useSortable(tabOrder, (ids) => {
-    const next = ids as SidebarTab[];
-    setTabOrder(next);
-    saveSidebarTabOrder(next);
-    if (next[0]) onTabChange(next[0]);
-  });
   const visibleFolderIds = sessionListEntries.flatMap((entry) =>
     entry.kind === "folder" ? [entry.folder.id] : [],
   );
@@ -446,8 +432,10 @@ function SidebarComponent({
     },
     { axis: "y" },
   );
-  const visibleTabs = tabOrder.filter((itemId) => itemId !== "inbox");
-  const canDragTabs = visibleTabs.length > 1;
+  const workspaceActive = tab === "files" || tab === "changes";
+  useEffect(() => {
+    if (workspaceActive) setLastWorkspaceTab(tab);
+  }, [tab, workspaceActive]);
   const showProjectRail = Boolean(onSelectProject && onOpenProject);
   // Settings live in the rail slot, so they keep it visible even when the
   // project rail itself is collapsed.
@@ -841,82 +829,69 @@ function SidebarComponent({
     />
   );
 
-  const onTabPick = (itemId: SidebarTab) => {
-    onTabChange(itemId);
-  };
-
   const changeAdditions = changeStats?.additions ?? 0;
   const changeDeletions = changeStats?.deletions ?? 0;
   const hasChangeStats = changeAdditions > 0 || changeDeletions > 0;
 
-  const workspaceTabItems = visibleTabs.map((itemId, index) => {
+  const modeTabItems = (
+    [
+      { id: "chat", label: "Chat", active: !workspaceActive },
+      { id: "workspace", label: "Workspace", active: workspaceActive },
+    ] as const
+  ).map((item) => (
+    <button
+      key={item.id}
+      type="button"
+      role="tab"
+      aria-selected={item.active}
+      onClick={() =>
+        onTabChange(item.id === "chat" ? "sessions" : lastWorkspaceTab)
+      }
+      className={`flex h-6 min-w-0 flex-1 items-center justify-center rounded-md px-2 text-[12px] leading-none ${
+        item.active
+          ? "bg-content/10 text-content"
+          : "text-content/50 hover:bg-content/5 hover:text-content"
+      }`}
+    >
+      <span className="truncate">{item.label}</span>
+    </button>
+  ));
+
+  const workspaceTabItems = (["files", "changes"] as const).map((itemId) => {
     const active = tab === itemId;
     const isChangesTab = itemId === "changes";
-    const draggingTab = sortable.draggingId === itemId;
-    const showStart =
-      sortable.draggingId &&
-      sortable.toIndex === index &&
-      sortable.fromIndex !== null &&
-      sortable.toIndex < sortable.fromIndex;
-    const showEnd =
-      sortable.draggingId &&
-      sortable.toIndex === index &&
-      sortable.fromIndex !== null &&
-      sortable.toIndex > sortable.fromIndex;
     return (
-      <div
+      <button
         key={itemId}
-        ref={(el) => sortable.setItemRef(itemId, el)}
-        className={`relative flex min-w-0 flex-1 touch-none items-stretch ${
-          draggingTab ? "opacity-40" : ""
-        } ${canDragTabs ? "cursor-grab active:cursor-grabbing" : ""}`}
-        onPointerDown={(event) => {
-          if (event.button !== 0) return;
-          onTabPick(itemId);
-          sortable.onItemPointerDown(itemId, event);
-        }}
+        type="button"
+        role="tab"
+        aria-selected={active}
+        aria-label={
+          isChangesTab && hasChangeStats
+            ? [
+                "Changes",
+                changeAdditions > 0 ? `+${changeAdditions}` : "",
+                changeDeletions > 0 ? `-${changeDeletions}` : "",
+              ]
+                .filter(Boolean)
+                .join(" ")
+            : undefined
+        }
+        onClick={() => onTabChange(itemId)}
+        className={`flex h-6 min-w-0 flex-1 items-center justify-center rounded-md px-2 text-[11px] leading-none ${
+          active
+            ? "bg-content/10 text-content"
+            : "text-content/45 hover:bg-content/5 hover:text-content"
+        }`}
       >
-        {showStart ? (
-          <div className="pointer-events-none absolute inset-y-0 left-0 z-20 w-0.5 bg-accent" />
-        ) : null}
-        {showEnd ? (
-          <div className="pointer-events-none absolute inset-y-0 right-0 z-20 w-0.5 bg-accent" />
-        ) : null}
-        <button
-          type="button"
-          role="tab"
-          aria-selected={active}
-          aria-label={
-            isChangesTab
-              ? hasChangeStats
-                ? [
-                    "Changes",
-                    changeAdditions > 0 ? `+${changeAdditions}` : "",
-                    changeDeletions > 0 ? `-${changeDeletions}` : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")
-                : "Changes"
-              : undefined
-          }
-          data-tauri-drag-region="false"
-          onClick={() => {
-            if (sortable.consumeClick()) return;
-            onTabPick(itemId);
-          }}
-          className={`flex h-6 min-w-0 flex-1 items-center justify-center self-center rounded-md px-2 text-[12px] leading-none ${
-            active
-              ? "bg-content/10 text-content"
-              : "text-content/50 hover:bg-content/5 hover:text-content"
-          } ${canDragTabs ? "cursor-grab active:cursor-grabbing" : ""}`}
-        >
-          {isChangesTab && hasChangeStats ? (
-            <DiffStat additions={changeAdditions} deletions={changeDeletions} />
-          ) : (
-            <span className="block truncate">{TAB_LABELS[itemId]}</span>
-          )}
-        </button>
-      </div>
+        {isChangesTab && hasChangeStats ? (
+          <DiffStat additions={changeAdditions} deletions={changeDeletions} />
+        ) : (
+          <span className="truncate">
+            {itemId === "files" ? "Explorer" : "Changes"}
+          </span>
+        )}
+      </button>
     );
   });
 
@@ -938,11 +913,20 @@ function SidebarComponent({
           </div>
           <div
             role="tablist"
-            aria-label="Workspace"
+            aria-label="Mode"
             className="flex h-9 shrink-0 items-center gap-px border-b border-content/10 px-2"
           >
-            {workspaceTabItems}
+            {modeTabItems}
           </div>
+          {workspaceActive ? (
+            <div
+              role="tablist"
+              aria-label="Workspace"
+              className="flex h-8 shrink-0 items-center gap-px border-b border-content/10 px-2"
+            >
+              {workspaceTabItems}
+            </div>
+          ) : null}
         </>
       ) : (
         <>
@@ -979,11 +963,20 @@ function SidebarComponent({
           ) : null}
           <div
             role="tablist"
-            aria-label="Workspace"
+            aria-label="Mode"
             className="flex h-9 shrink-0 items-center gap-px overflow-visible border-b border-content/10 px-2"
           >
-            {workspaceTabItems}
+            {modeTabItems}
           </div>
+          {workspaceActive ? (
+            <div
+              role="tablist"
+              aria-label="Workspace"
+              className="flex h-8 shrink-0 items-center gap-px border-b border-content/10 px-2"
+            >
+              {workspaceTabItems}
+            </div>
+          ) : null}
         </>
       )}
       <>
@@ -1027,7 +1020,7 @@ function SidebarComponent({
               {sessionSearchInput}
             </div>
             <SessionsHeaderButton
-              label="Filter sessions"
+              label="Filter conversations"
               active={filtersActive}
               open={!!filterMenu}
               hasPopup
@@ -1062,7 +1055,7 @@ function SidebarComponent({
               {pendingFirstLoad ? null : status === "error" &&
                 sessions.length === 0 ? (
                 <p className="px-3 py-2 text-[12px] text-content/50">
-                  Couldn’t load sessions
+                  Couldn’t load conversations
                 </p>
               ) : visibleSessions.length === 0 ? (
                 // A narrowed-down result is a transient answer to what the user
@@ -1071,11 +1064,11 @@ function SidebarComponent({
                 narrowedByUser ? (
                   <p className="px-3 py-2 text-[12px] text-content/50">
                     {searchNarrowed
-                      ? "No matching sessions"
-                      : "No sessions match these filters"}
+                      ? "No matching conversations"
+                      : "No conversations match these filters"}
                   </p>
                 ) : (
-                  <SessionsEmpty message="Sessions you start will show up here" />
+                  <SessionsEmpty message="Conversations you start will show up here" />
                 )
               ) : (
                 <ul className="flex flex-col gap-0.5 p-1.5">

@@ -5,6 +5,7 @@ import {
   CornerDownRight,
   FilePlus,
   ListEnd,
+  Lock,
   Pause,
   Pencil,
   Play,
@@ -138,6 +139,7 @@ type Props = {
   hideProjectPicker?: boolean;
   hideBranchPicker?: boolean;
   hideTopBar?: boolean;
+  chatOnly?: boolean;
   context?: ContextUsage;
   compactSupported?: boolean;
   quoteRequest?: QuoteRequest;
@@ -392,6 +394,7 @@ export function Composer({
   hideProjectPicker = false,
   hideBranchPicker = false,
   hideTopBar = false,
+  chatOnly = false,
   context,
   compactSupported = false,
   quoteRequest,
@@ -493,7 +496,7 @@ export function Composer({
   const skills = skillCatalog.skills;
   const slashItems = useMemo(
     () => [
-      PLAN_COMMAND,
+      ...(chatOnly ? [] : [PLAN_COMMAND]),
       COMPACT_COMMAND,
       ...skills.filter(
         (skill) =>
@@ -502,8 +505,11 @@ export function Composer({
             skill.name !== COMPACT_COMMAND.name),
       ),
     ],
-    [skills],
+    [chatOnly, skills],
   );
+  useEffect(() => {
+    if (chatOnly) setPlanSelected(false);
+  }, [chatOnly]);
   const skillLimit = hasNativeCommands(harness)
     ? Number.POSITIVE_INFINITY
     : undefined;
@@ -1310,28 +1316,30 @@ export function Composer({
                       </span>
                     </span>
                   </button>
-                  <button
-                    type="button"
-                    aria-pressed={planSelected}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      setPlanSelected((selected) => !selected);
-                      setPlusOpen(false);
-                      ref.current?.focus();
-                    }}
-                    className="flex w-full items-start gap-2.5 rounded-lg px-2 py-2 text-left text-content hover:bg-content/10"
-                  >
-                    <AiIdea className="mt-0.5 size-4 shrink-0 text-yellow-300/80" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[13px]">Plan mode</span>
-                      <span className="block text-[11px] leading-4 text-content/45">
-                        Create a plan to review before building
+                  {!chatOnly ? (
+                    <button
+                      type="button"
+                      aria-pressed={planSelected}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setPlanSelected((selected) => !selected);
+                        setPlusOpen(false);
+                        ref.current?.focus();
+                      }}
+                      className="flex w-full items-start gap-2.5 rounded-lg px-2 py-2 text-left text-content hover:bg-content/10"
+                    >
+                      <AiIdea className="mt-0.5 size-4 shrink-0 text-yellow-300/80" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[13px]">Plan mode</span>
+                        <span className="block text-[11px] leading-4 text-content/45">
+                          Create a plan to review before building
+                        </span>
                       </span>
-                    </span>
-                    {planSelected ? (
-                      <Check className="mt-0.5 size-3.5 shrink-0 text-accent" />
-                    ) : null}
-                  </button>
+                      {planSelected ? (
+                        <Check className="mt-0.5 size-3.5 shrink-0 text-accent" />
+                      ) : null}
+                    </button>
+                  ) : null}
                 </Popover>
               ) : null}
             </div>
@@ -1382,7 +1390,15 @@ export function Composer({
                   onChange={(settings) => onModelSettingsChange?.(settings)}
                   onClose={() => ref.current?.focus()}
                 />
-                {harness !== "fx" ? (
+                {chatOnly ? (
+                  <div
+                    title="Chat mode cannot change workspace files"
+                    className="flex h-6.5 items-center gap-1 rounded-md bg-content/10 px-1.5 text-[11px] text-content/70"
+                  >
+                    <Lock className="size-3.5" strokeWidth={1.75} />
+                    Read only
+                  </div>
+                ) : harness !== "fx" ? (
                   <AccessPicker
                     value={runtimeMode}
                     onChange={onRuntimeModeChange}
