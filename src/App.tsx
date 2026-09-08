@@ -4627,6 +4627,36 @@ export default function App({
     [onSelectHistorySession],
   );
 
+  const openChatSurface = useCallback(() => {
+    const activeId = activeSessionIdRef.current;
+    if (activeId && focusOpenSession(activeId)) return;
+
+    const currentCwd = sidebarCwdRef.current;
+    const candidate =
+      sessionsRef.current.find(
+        (session) =>
+          !session.inboxAsk && sameProjectPath(session.cwd, currentCwd),
+      ) ?? sessionsRef.current.find((session) => !session.inboxAsk);
+    if (candidate) {
+      void onSelectHistorySession(candidate.id);
+      return;
+    }
+    onNew();
+  }, [focusOpenSession, onNew, onSelectHistorySession]);
+
+  const onSidebarTabChange = useCallback(
+    (next: SidebarTabId) => {
+      setSidebarTab(next);
+      if (next !== "sessions") return;
+      setSearchViewOpen(false);
+      setInboxViewOpen(false);
+      setNotesViewOpen(false);
+      setSettingsOpen(false);
+      openChatSurface();
+    },
+    [openChatSurface],
+  );
+
   const onRailBack = useCallback(() => {
     if (settingsOpen) {
       setSettingsOpen(false);
@@ -5110,7 +5140,7 @@ export default function App({
         gitCwd={gitCwd}
         open
         tab={sidebarTab}
-        onTabChange={setSidebarTab}
+        onTabChange={onSidebarTabChange}
         filesSearchOpen={filesSearchOpen}
         onFilesSearchOpenChange={setFilesSearchOpen}
         onOpenFilesSearch={onFindInProject}

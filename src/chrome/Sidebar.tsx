@@ -903,20 +903,17 @@ function SidebarComponent({
       {railVisible ? (
         <>
           <div
-            className="flex h-10 shrink-0 select-none items-center gap-1 border-b border-content/10 pl-3 pr-1.5"
+            className="flex h-9 shrink-0 select-none items-center gap-1 border-b border-content/10 px-2"
             data-tauri-drag-region="deep"
           >
-            <span className="min-w-0 flex-1 truncate text-sm font-medium leading-tight">
-              Workspace
-            </span>
+            <div
+              role="tablist"
+              aria-label="Mode"
+              className="flex min-w-0 flex-1 items-center gap-px"
+            >
+              {modeTabItems}
+            </div>
             <WorkspaceTitleActions onSearch={onGoToFile} onNew={onNew} />
-          </div>
-          <div
-            role="tablist"
-            aria-label="Mode"
-            className="flex h-9 shrink-0 items-center gap-px border-b border-content/10 px-2"
-          >
-            {modeTabItems}
           </div>
           {workspaceActive ? (
             <div

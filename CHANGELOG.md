@@ -2,6 +2,13 @@
 
 All notable changes to Vertex are documented in this file.
 
+## [0.2.1] - 2026-09-08
+
+### Changed
+
+- Removed the large Workspace heading above the sidebar mode tabs.
+- Made the Chat tab open the full conversation surface directly, including message input, send controls, file and image attachments, and model selection.
+
 ## [0.2.0] - 2026-09-08
 
 ### Changed
@@ -24,5 +31,6 @@ All notable changes to Vertex are documented in this file.
 - Established Vertex as the product name across the interface, application metadata, packages, runtime identifiers, storage keys, events, tests, documentation, and release tooling.
 - Set the application version to `0.1.0` for the first Vertex release.
 
+[0.2.1]: https://github.com/Starlord639/Vertex/releases/tag/v0.2.1
 [0.2.0]: https://github.com/Starlord639/Vertex/releases/tag/v0.2.0
 [0.1.0]: https://github.com/Starlord639/Vertex/releases/tag/v0.1.0
