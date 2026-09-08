@@ -28,11 +28,11 @@ Works with your subscriptions on Claude Code, Codex, Cursor, Grok Build, OpenCod
 > - [omp](https://omp.sh) - `curl -fsSL https://omp.sh/install | sh`
 > - [fx](https://fx.sh) - `curl -fsSL https://fx.sh/setup.sh | bash` then `fx login`
 
-macOS (Apple Silicon): download [Vertex.dmg](https://github.com/hardbeat920/vertex/releases/latest), open it, drag Vertex to Applications.
+macOS (Apple Silicon): download [Vertex.dmg](https://github.com/Starlord639/Vertex/releases/latest), open it, drag Vertex to Applications.
 
-Linux (x86_64): download the `.deb` or AppImage from [GitHub Releases](https://github.com/hardbeat920/vertex/releases/latest). Install the `.deb` with `sudo apt install ./Vertex_*.deb`, or make the AppImage executable with `chmod +x Vertex_*.AppImage` and run it directly.
+Linux (x86_64): download the `.deb` or AppImage from [GitHub Releases](https://github.com/Starlord639/Vertex/releases/latest). Install the `.deb` with `sudo apt install ./Vertex_*.deb`, or make the AppImage executable with `chmod +x Vertex_*.AppImage` and run it directly.
 
-Windows (x86_64): download the NSIS installer from [GitHub Releases](https://github.com/hardbeat920/vertex/releases/latest) and run it.
+Windows (x86_64): download the NSIS installer from [GitHub Releases](https://github.com/Starlord639/Vertex/releases/latest) and run it.
 
 ## Some notes
 

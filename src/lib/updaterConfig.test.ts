@@ -41,7 +41,7 @@ describe("updater", () => {
       currentVersion: "0.1.23",
     });
     expect(message).toHaveBeenCalledWith(
-      expect.stringContaining("https://github.com/hardbeat920/vertex/releases/latest"),
+      expect.stringContaining("https://github.com/Starlord639/Vertex/releases/latest"),
       { title: "Vertex" },
     );
   });

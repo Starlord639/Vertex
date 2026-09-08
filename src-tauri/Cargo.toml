@@ -4,8 +4,8 @@ version.workspace = true
 edition.workspace = true
 description = "Vertex — one UI for every agent harness"
 authors = ["Nick"]
-repository = "https://github.com/hardbeat920/vertex"
-homepage = "https://github.com/hardbeat920/vertex"
+repository = "https://github.com/Starlord639/Vertex"
+homepage = "https://github.com/Starlord639/Vertex"
 license.workspace = true
 
 [lib]
