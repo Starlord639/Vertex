@@ -2,6 +2,13 @@
 
 All notable changes to Vertex are documented in this file.
 
+## [0.2.2] - 2026-09-08
+
+### Fixed
+
+- Replaced the empty conversation-list state in the Chat tab with the actual embedded chat surface.
+- Kept the active editor visible while the sidebar chat provides its own transcript, message composer, send button, attachments, and model controls.
+
 ## [0.2.1] - 2026-09-08
 
 ### Changed
@@ -31,6 +38,7 @@ All notable changes to Vertex are documented in this file.
 - Established Vertex as the product name across the interface, application metadata, packages, runtime identifiers, storage keys, events, tests, documentation, and release tooling.
 - Set the application version to `0.1.0` for the first Vertex release.
 
+[0.2.2]: https://github.com/Starlord639/Vertex/releases/tag/v0.2.2
 [0.2.1]: https://github.com/Starlord639/Vertex/releases/tag/v0.2.1
 [0.2.0]: https://github.com/Starlord639/Vertex/releases/tag/v0.2.0
 [0.1.0]: https://github.com/Starlord639/Vertex/releases/tag/v0.1.0

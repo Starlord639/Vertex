@@ -6,11 +6,11 @@ import { WhatsNewBody } from "./WhatsNewDialog";
 describe("WhatsNewBody", () => {
   it("renders the version notes without the changelog heading", () => {
     const markup = renderToStaticMarkup(
-      createElement(WhatsNewBody, { version: "0.2.1" }),
+      createElement(WhatsNewBody, { version: "0.2.2" }),
     );
 
     expect(markup).toContain("whats-new-md");
-    expect(markup).toContain("What&#x27;s new in Vertex 0.2.1");
-    expect(markup).not.toContain("## [0.2.1]");
+    expect(markup).toContain("What&#x27;s new in Vertex 0.2.2");
+    expect(markup).not.toContain("## [0.2.2]");
   });
 });

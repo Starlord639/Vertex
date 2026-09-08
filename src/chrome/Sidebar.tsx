@@ -168,6 +168,7 @@ type Props = {
   onArchiveSession?: (sessionId: string, archived: boolean) => void;
   onPinSession?: (sessionId: string, pinned: boolean) => void;
   onDeleteSession?: (sessionId: string) => void;
+  chatContent?: ReactNode;
   onOpenFile: (path: string) => void;
   onOpenTerminal?: (cwd: string) => void;
   onFileMoved?: (from: string, to: string) => void;
@@ -237,6 +238,7 @@ function SidebarComponent({
   onArchiveSession,
   onPinSession,
   onDeleteSession,
+  chatContent,
   onOpenFile,
   onOpenTerminal,
   onFileMoved,
@@ -1010,7 +1012,10 @@ function SidebarComponent({
             </p>
           )}
         </div>
-        {tab === "sessions" && cwd && cwd !== "~" ? (
+        {tab === "sessions" && chatContent ? (
+          <div className="min-h-0 flex-1 overflow-hidden">{chatContent}</div>
+        ) : null}
+        {tab === "sessions" && !chatContent && cwd && cwd !== "~" ? (
           <div className="flex h-9 shrink-0 items-center gap-1 border-b border-content/10 px-2">
             <div className="relative flex h-7 min-w-0 flex-1 items-center">
               <Search className="pointer-events-none absolute left-2 size-3 shrink-0 opacity-50" />
@@ -1033,7 +1038,7 @@ function SidebarComponent({
             sessionsScrollRef.current = el;
           }}
           className={`min-h-0 flex-1 overflow-y-auto overscroll-none ${
-            tab === "sessions" ? "" : "hidden"
+            tab === "sessions" && !chatContent ? "" : "hidden"
           }`}
         >
           {!cwd || cwd === "~" ? (
