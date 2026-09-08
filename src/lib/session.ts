@@ -203,6 +203,8 @@ export const RUNTIME_MODE_HINT: Record<RuntimeMode, string> = {
 export type Session = {
   /** Temporary Inbox conversation: shares the runtime, never saved as a session. */
   inboxAsk?: InboxAskContext;
+  /** Conversation-only session kept separate from workspace/build sessions. */
+  chatOnly?: boolean;
   id: string;
   harness: HarnessId;
   model: string;
@@ -312,6 +314,14 @@ export function newDefaultSession(
 ): Session {
   const choice = defaultSessionChoice();
   return newSession(choice.harness, cwd, choice.model, runtimeMode);
+}
+
+/** New read-only conversation that never acts as a workspace/build session. */
+export function newChatSession(cwd = "~"): Session {
+  return {
+    ...newDefaultSession(cwd, "supervised"),
+    chatOnly: true,
+  };
 }
 
 /** First line of a prompt, truncated for the tab strip. */

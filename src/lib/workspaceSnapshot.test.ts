@@ -11,7 +11,7 @@ import {
   newTerminalFile,
 } from "./layout";
 import { createProjectTerminal } from "./projectTerminal";
-import { newSession, type Session } from "./session";
+import { newChatSession, newSession, type Session } from "./session";
 import {
   collectWorkspaceSnapshot,
   hydrateWorkspaceSnapshot,
@@ -27,6 +27,37 @@ function chat(id: string, cwd: string): Session {
 }
 
 describe("collectWorkspaceSnapshot", () => {
+  it("keeps chat-only sessions separate across workspace restoration", () => {
+    const workspaceSession = chat("s1", "/tmp/a");
+    const conversation = newChatSession("/tmp/a");
+    conversation.id = "chat-only";
+    conversation.blocks = [{ id: "u2", role: "user", text: "hello chat" }];
+    const tab = { ...newTab(workspaceSession.id), id: "t1" };
+
+    const snapshot = collectWorkspaceSnapshot(
+      [tab],
+      [workspaceSession, conversation],
+      tab.id,
+      "/tmp/a",
+    );
+    const restored = hydrateWorkspaceSnapshot(
+      snapshot,
+      new Map([
+        [workspaceSession.id, workspaceSession],
+        [conversation.id, { ...conversation, chatOnly: undefined }],
+      ]),
+    );
+
+    expect(
+      snapshot.sessions.find((session) => session.id === "chat-only"),
+    ).toMatchObject({ chatOnly: true });
+    expect(
+      restored?.sessions.find((session) => session.id === "chat-only"),
+    ).toMatchObject({ chatOnly: true });
+    expect(restored?.tabs).toHaveLength(1);
+    expect(restored?.tabs[0]?.layout).toMatchObject({ id: "s1" });
+  });
+
   it("stores tabs, stubs, and the focused tab — not transcripts", () => {
     const session = chat("s1", "/tmp/a");
     session.blocks.push({ id: "a1", role: "assistant", text: "hi" });

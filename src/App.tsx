@@ -227,6 +227,7 @@ import {
   canReplaceSessionTitle,
   formatSessionTitle,
   sessionNeedsInput,
+  newChatSession,
   newDefaultSession,
   newSession,
   sessionDisplayTitle,
@@ -565,12 +566,17 @@ export default function App({
   const [seed] = useState(() => {
     const cwd = lastProjectPath() ?? "~";
     const session = newDefaultSession(cwd);
+    const chatSession = newChatSession(cwd);
     const tab = newTab(session.id);
-    return { session, tab };
+    return { session, chatSession, tab };
   });
-  const [sessions, setSessions] = useState<Session[]>(
-    () => windowTransfer?.sessions ?? resumed?.sessions ?? [seed.session],
-  );
+  const [sessions, setSessions] = useState<Session[]>(() => {
+    const restored = windowTransfer?.sessions ??
+      resumed?.sessions ?? [seed.session];
+    return restored.some((session) => session.chatOnly)
+      ? restored
+      : [...restored, seed.chatSession];
+  });
   const [tabs, setTabs] = useState<WorkspaceTab[]>(
     () => windowTransfer?.tabs ?? resumed?.tabs ?? [seed.tab],
   );
@@ -602,8 +608,6 @@ export default function App({
   const currentProjectDock = findProjectTerminal(projectTerminals, projectCwd);
   const dockVisible = !!currentProjectDock?.open;
   const [sidebarTab, setSidebarTab] = useState<SidebarTabId>("sessions");
-  const sidebarTabRef = useRef<SidebarTabId>(sidebarTab);
-  sidebarTabRef.current = sidebarTab;
   const [filesSearchOpen, setFilesSearchOpen] = useState(false);
   const [searchFocusToken, setSearchFocusToken] = useState(0);
   const [searchViewOpen, setSearchViewOpen] = useState(false);
@@ -3444,7 +3448,7 @@ export default function App({
       const current = options?.buildTarget
         ? withPlanBuildTarget(storedCurrent, options.buildTarget)
         : storedCurrent;
-      const chatOnly = sidebarTabRef.current === "sessions";
+      const chatOnly = !!current.chatOnly;
       const intent = chatOnly ? "default" : (options?.intent ?? "default");
       const approvedPlan = options?.planBlockId
         ? current.blocks.find(
@@ -4489,10 +4493,17 @@ export default function App({
 
   // `history` now spans every visited project; consumers that expect the
   // current project only get this slice.
-  const projectHistory = useMemo(
-    () => history.filter((entry) => sameProjectPath(entry.cwd, sidebarCwd)),
-    [history, sidebarCwd],
-  );
+  const projectHistory = useMemo(() => {
+    const chatSessionIds = new Set(
+      sessions
+        .filter((session) => session.chatOnly)
+        .map((session) => session.id),
+    );
+    return history.filter(
+      (entry) =>
+        !chatSessionIds.has(entry.id) && sameProjectPath(entry.cwd, sidebarCwd),
+    );
+  }, [history, sessions, sidebarCwd]);
 
   const sidebarHistory = useMemo(
     () =>
@@ -4503,7 +4514,12 @@ export default function App({
         ...(sidebarCwd && sidebarCwd !== "~"
           ? { repo: projectName(sidebarCwd) }
           : {}),
-      }),
+      }).filter(
+        (entry) =>
+          !sessions.some(
+            (session) => session.chatOnly && session.id === entry.id,
+          ),
+      ),
     [history, projectBranches, sessions, sidebarCwd],
   );
   const openProjectSessions = useMemo(
@@ -4511,7 +4527,9 @@ export default function App({
       sessions
         .filter(
           (session) =>
-            !session.inboxAsk && sameProjectPath(session.cwd, sidebarCwd),
+            !session.inboxAsk &&
+            !session.chatOnly &&
+            sameProjectPath(session.cwd, sidebarCwd),
         )
         .map((session) =>
           summaryFromSession(session, {
@@ -5078,7 +5096,6 @@ export default function App({
   const sessionPaneProps = {
     recents,
     hideProjectPicker: true,
-    chatOnly: sidebarTab === "sessions",
     onFocus: onFocusPane,
     onClose: onClosePane,
     onCwdChange,
@@ -5107,13 +5124,7 @@ export default function App({
     onHandoff,
     onNewTerminal: onNewTerminalInSession,
   };
-  const sidebarChatSession =
-    active ??
-    sessions.find(
-      (session) =>
-        !session.inboxAsk && sameProjectPath(session.cwd, sidebarCwd),
-    ) ??
-    sessions.find((session) => !session.inboxAsk);
+  const sidebarChatSession = sessions.find((session) => session.chatOnly);
 
   return (
     <div
@@ -5393,7 +5404,9 @@ export default function App({
             cwd={sidebarCwd}
             recents={recents}
             history={projectHistory}
-            sessions={sessions.filter((session) => !session.inboxAsk)}
+            sessions={sessions.filter(
+              (session) => !session.inboxAsk && !session.chatOnly,
+            )}
             focusToken={searchViewFocusToken}
             besideRail={projectRailOpen}
             onClose={onLeaveSearch}
