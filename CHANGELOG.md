@@ -2,6 +2,13 @@
 
 All notable changes to Vertex are documented in this file.
 
+## [0.2.4] - 2026-09-08
+
+### Fixed
+
+- Prevented the dedicated sidebar Chat session from being removed by detached-session cleanup immediately after startup.
+- Ensured the embedded Chat interface remains visible instead of falling back to the empty conversation list.
+
 ## [0.2.3] - 2026-09-08
 
 ### Fixed
@@ -46,6 +53,7 @@ All notable changes to Vertex are documented in this file.
 - Established Vertex as the product name across the interface, application metadata, packages, runtime identifiers, storage keys, events, tests, documentation, and release tooling.
 - Set the application version to `0.1.0` for the first Vertex release.
 
+[0.2.4]: https://github.com/Starlord639/Vertex/releases/tag/v0.2.4
 [0.2.3]: https://github.com/Starlord639/Vertex/releases/tag/v0.2.3
 [0.2.2]: https://github.com/Starlord639/Vertex/releases/tag/v0.2.2
 [0.2.1]: https://github.com/Starlord639/Vertex/releases/tag/v0.2.1

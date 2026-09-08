@@ -221,6 +221,7 @@ import {
   workspaceTabCwd,
 } from "./lib/workspaceTabGroups";
 import { runSessionRemoval } from "./lib/sessionRemoval";
+import { mountedSessionIds } from "./lib/sessionVisibility";
 import {
   HARNESS_LABEL,
   HARNESS_TITLE,
@@ -1292,12 +1293,7 @@ export default function App({
   // keeps its child for a few minutes after a turn so follow-ups stay instant,
   // then parks it and resumes on the next prompt.
   useEffect(() => {
-    const visibleIds = openSessionIds(tabs);
-    // Inbox owns these panes independently of project tabs. Keep their drafts
-    // and attachments mounted when the panel closes or switches items.
-    for (const session of sessions) {
-      if (session.inboxAsk) visibleIds.add(session.id);
-    }
+    const visibleIds = mountedSessionIds(tabs, sessions);
     const keepUnseen = liveAgentsEnabled;
     const idleDetached = sessions.filter(
       (session) =>
