@@ -12,6 +12,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { Sidebar } from "./chrome/Sidebar";
+import { ChatSessionSwitcher } from "./chrome/ChatSessionSwitcher";
 import { ApprovalToasts } from "./chrome/ApprovalToasts";
 import { WhatsNewDialog } from "./chrome/WhatsNewDialog";
 import { TitleBar, type Tab as TitleTab } from "./chrome/TitleBar";
@@ -577,6 +578,12 @@ export default function App({
     return restored.some((session) => session.chatOnly)
       ? restored
       : [...restored, seed.chatSession];
+  });
+  const [activeChatSessionId, setActiveChatSessionId] = useState(() => {
+    const restored = windowTransfer?.sessions ?? resumed?.sessions;
+    return (
+      restored?.find((session) => session.chatOnly)?.id ?? seed.chatSession.id
+    );
   });
   const [tabs, setTabs] = useState<WorkspaceTab[]>(
     () => windowTransfer?.tabs ?? resumed?.tabs ?? [seed.tab],
@@ -1408,6 +1415,104 @@ export default function App({
     sessionDefaults?.runtimeMode,
     projectCwd,
   ]);
+
+  const onNewSidebarChat = useCallback(() => {
+    const current =
+      sessionsRef.current.find(
+        (session) => session.id === activeChatSessionId && session.chatOnly,
+      ) ?? sessionsRef.current.find((session) => session.chatOnly);
+    const session: Session = {
+      ...newSession(
+        current?.harness ?? "codex",
+        current?.cwd ?? projectCwdRef.current,
+        current?.model,
+        "supervised",
+        current?.modelSettings,
+      ),
+      chatOnly: true,
+    };
+    const next = [...sessionsRef.current, session];
+    sessionsRef.current = next;
+    setSessions(next);
+    setActiveChatSessionId(session.id);
+    setComposerFocused(true);
+  }, [activeChatSessionId]);
+
+  const onSelectSidebarChat = useCallback((sessionId: string) => {
+    if (
+      !sessionsRef.current.some(
+        (session) => session.id === sessionId && session.chatOnly,
+      )
+    ) {
+      return;
+    }
+    setActiveChatSessionId(sessionId);
+    setComposerFocused(true);
+  }, []);
+
+  const onDeleteSidebarChat = useCallback(
+    async (sessionId: string) => {
+      if (removingSessionIds.current.has(sessionId)) return;
+      const target = sessionsRef.current.find(
+        (session) => session.id === sessionId && session.chatOnly,
+      );
+      if (!target) return;
+      const label = sessionDisplayTitle(target.title, target.harness);
+      if (
+        !window.confirm(
+          `Delete “${label === "New session" ? "New chat" : label}”?`,
+        )
+      ) {
+        return;
+      }
+
+      removingSessionIds.current.add(sessionId);
+      pendingPersist.current.delete(sessionId);
+      try {
+        const stopped = await stopSessionForRemoval(sessionId);
+        if (stopped) await deleteSession(sessionId);
+        for (const harness of sessionChildHarnesses(stopped ?? target)) {
+          void forgetHarnessSession(harness, sessionId);
+        }
+        lastPersisted.current.delete(sessionId);
+        const remaining = sessionsRef.current.filter(
+          (session) => session.id !== sessionId,
+        );
+        const otherChats = remaining.filter((session) => session.chatOnly);
+        if (otherChats.length === 0) {
+          const replacement: Session = {
+            ...newSession(
+              target.harness,
+              target.cwd,
+              target.model,
+              "supervised",
+              target.modelSettings,
+            ),
+            chatOnly: true,
+          };
+          remaining.push(replacement);
+          otherChats.push(replacement);
+        }
+        sessionsRef.current = remaining;
+        setSessions(remaining);
+        setActiveChatSessionId(
+          otherChats[otherChats.length - 1]?.id ?? otherChats[0]!.id,
+        );
+        setHistory((current) =>
+          current.filter((entry) => entry.id !== sessionId),
+        );
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        void message(`Could not delete this chat.\n\n${detail}`, {
+          title: "Vertex",
+          kind: "error",
+        });
+      } finally {
+        removingSessionIds.current.delete(sessionId);
+      }
+    },
+    [stopSessionForRemoval],
+  );
 
   const onStartInboxItem = useCallback(
     async (item: InboxItem, body?: string) => {
@@ -5120,7 +5225,10 @@ export default function App({
     onHandoff,
     onNewTerminal: onNewTerminalInSession,
   };
-  const sidebarChatSession = sessions.find((session) => session.chatOnly);
+  const chatSessions = sessions.filter((session) => session.chatOnly);
+  const sidebarChatSession =
+    chatSessions.find((session) => session.id === activeChatSessionId) ??
+    chatSessions[0];
 
   return (
     <div
@@ -5144,17 +5252,28 @@ export default function App({
         activeSessionId={active?.id}
         chatContent={
           sidebarTab === "sessions" && sidebarChatSession ? (
-            <SessionPane
-              {...sessionPaneProps}
-              session={sidebarChatSession}
-              visible
-              focused
-              addToChatTarget
-              inSplit={false}
-              composerFocused
-              chatOnly
-              onFocus={() => setComposerFocused(true)}
-            />
+            <div className="flex h-full min-h-0 flex-col">
+              <ChatSessionSwitcher
+                sessions={chatSessions}
+                activeSessionId={sidebarChatSession.id}
+                onSelect={onSelectSidebarChat}
+                onNew={onNewSidebarChat}
+                onDelete={onDeleteSidebarChat}
+              />
+              <div className="min-h-0 flex-1">
+                <SessionPane
+                  {...sessionPaneProps}
+                  session={sidebarChatSession}
+                  visible
+                  focused
+                  addToChatTarget
+                  inSplit={false}
+                  composerFocused
+                  chatOnly
+                  onFocus={() => setComposerFocused(true)}
+                />
+              </div>
+            </div>
           ) : undefined
         }
         status={historyFailed ? "error" : "idle"}

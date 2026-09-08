@@ -2,6 +2,17 @@
 
 All notable changes to Vertex are documented in this file.
 
+## [0.3.0] - 2026-09-08
+
+### Added
+
+- Added a Chat history selector for reopening earlier conversation-only chats.
+- Added controls to create a fresh Chat and delete the currently selected Chat.
+
+### Changed
+
+- Kept all managed Chat histories separate from Workspace/build sessions and restored them across app restarts.
+
 ## [0.2.4] - 2026-09-08
 
 ### Fixed
@@ -53,6 +64,7 @@ All notable changes to Vertex are documented in this file.
 - Established Vertex as the product name across the interface, application metadata, packages, runtime identifiers, storage keys, events, tests, documentation, and release tooling.
 - Set the application version to `0.1.0` for the first Vertex release.
 
+[0.3.0]: https://github.com/Starlord639/Vertex/releases/tag/v0.3.0
 [0.2.4]: https://github.com/Starlord639/Vertex/releases/tag/v0.2.4
 [0.2.3]: https://github.com/Starlord639/Vertex/releases/tag/v0.2.3
 [0.2.2]: https://github.com/Starlord639/Vertex/releases/tag/v0.2.2
